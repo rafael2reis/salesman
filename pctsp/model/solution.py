@@ -34,22 +34,24 @@ class Solution(object):
         self.size = len(pctsp.prize) # Default size value is the total of cities
         self.quality = 0
         self.pctsp = pctsp
+        self.prize = 0
 
     """
     Computes the quality of the solution.
     """
     def compute(self):
+        self.prize = 0
         self.quality = 0
         for i,city in enumerate(self._route):
             if i < self.size:
-                self.quality += self.pctsp.prize[city]
+                self.prize += self.pctsp.prize[city]
                 if i > 0:
                     previousCity = self._route[i - 1]
-                    self.quality -= self.pctsp.cost[previousCity][city]
+                    self.quality += self.pctsp.cost[previousCity][city]
                 if i + 1 == self.size:
-                    self.quality -= self.pctsp.cost[i][0]
+                    self.quality += self.pctsp.cost[i][0]
             else:
-                self.quality -= self.pctsp.penal[city]
+                self.quality += self.pctsp.penal[city]
 
     @property
     def route(self):
