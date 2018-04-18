@@ -9,13 +9,16 @@ solution module - Implements Solution, a class that describes a solution for the
 __version__="1.0"
 
 import numpy as np
+import copy
 from random import shuffle
 
-def random(pctsp):
+def random(pctsp, size):
     s = Solution(pctsp)
-    size = len(pctsp.prize)
+    length = len(pctsp.prize)
 
-    cities = list(range(1, size, 1))
+    if size: s.size = size
+
+    cities = list(range(1, length, 1))
     shuffle(cities) # Shuffle in place
     s.route = [0] + cities # The city 0 is always the first    
 
@@ -52,6 +55,68 @@ class Solution(object):
                     self.quality += self.pctsp.cost[i][0]
             else:
                 self.quality += self.pctsp.penal[city]
+
+    def copy(self):
+        return copy.copy(self)
+    
+    def swap(self, i, j):
+        city_i = self._route[i]
+        city_i_prev = self._route[i-1]
+        city_i_next = self._route[(i+1) % self.size]
+        
+        city_j = self._route[j]
+
+        self.quality = (self.quality
+                - self.pctsp.cost[city_i_prev][city_i] - self.pctsp.cost[city_i][city_i_next]
+                + self.pctsp.cost[city_i_prev][city_j] + self.pctsp.cost[city_j][city_i_next])
+        self.prize = self.prize - self.pctsp.prize[city_i] + self.pctsp.prize[city_j]
+
+        self._route[j], self._route[i] = self._route[i], self._route[j]
+
+    def is_valid(self):
+        return self.prize >= self.pctsp.prize_min
+
+    def add_city(self):
+        city_l = self._route[self.size - 1]
+        city_add = self._route[self.size]        
+
+        self.quality = (self.quality
+            - self.pctsp.cost[city_l][0]
+            + self.pctsp.cost[city_l][city_add]
+            + self.pctsp.cost[city_add][0])
+        
+        self.size += 1
+        self.prize += self.pctsp.prize[city_add]
+
+    def remove_city(self, index):
+        city_rem = self._route[index]
+        city_rem_prev = self._route[index-1]
+        city_rem_next = self._route[(index+1)%self.size]
+
+        self.quality = (self.quality
+            - self.pctsp.cost[city_rem_prev][city_rem] - self.pctsp.cost[city_rem][city_rem_next]
+            + self.pctsp.cost[city_rem_prev][city_rem_next])
+        self.prize -= self.pctsp.prize[city_rem]
+
+        del self._route[index]        
+        self._route.append(city_rem)
+
+        self.size -= 1
+
+    def remove_cities(self, quant):
+        for i in range(self.size-quant,self.size):
+            city_rem = self._route[i]
+            city_rem_prev = self._route[i-1]
+
+            self.quality -= self.pctsp.cost[city_rem_prev][city_rem]
+            self.prize -= self.pctsp.prize[city_rem]
+
+        city_rem = self._route[self.size-1]
+        city_l = self._route[self.size-quant-1]
+        self.quality = (self.quality - self.pctsp.cost[city_rem][0]
+            + self.pctsp.cost[city_l][0])
+
+        self.size -= quant
 
     @property
     def route(self):
