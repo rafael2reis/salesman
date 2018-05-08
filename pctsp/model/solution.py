@@ -10,6 +10,7 @@ __version__="1.0"
 
 import numpy as np
 import copy
+import sys
 from random import shuffle
 
 def random(pctsp, size):
@@ -18,9 +19,20 @@ def random(pctsp, size):
 
     if size: s.size = size
 
-    cities = list(range(1, length, 1))
-    shuffle(cities) # Shuffle in place
-    s.route = [0] + cities # The city 0 is always the first    
+    i = 0
+    num_solutions = 30
+
+    while i < num_solutions or not s.is_valid():
+        r = Solution(pctsp)
+        if size: r.size = size
+        cities = list(range(1, length, 1))
+        shuffle(cities) # Shuffle in place
+        r.route = [0] + cities # The city 0 is always the first
+
+        if r.quality < s.quality and r.is_valid():
+            s = r
+
+        i += 1
 
     return s
 
@@ -32,10 +44,15 @@ class Solution(object):
        quality (:obj:`int`): The quality of the solution
     """
 
-    def __init__(self, pctsp):
+    def __init__(self, pctsp, size=None):
         self._route = []
-        self.size = len(pctsp.prize) # Default size value is the total of cities
-        self.quality = 0
+        
+        if size:
+            self.size = size
+        else:
+            self.size = len(pctsp.prize) # Default size value is the total of cities
+        
+        self.quality = sys.maxsize
         self.pctsp = pctsp
         self.prize = 0
 
@@ -45,6 +62,7 @@ class Solution(object):
     def compute(self):
         self.prize = 0
         self.quality = 0
+
         for i,city in enumerate(self._route):
             if i < self.size:
                 self.prize += self.pctsp.prize[city]
@@ -52,12 +70,15 @@ class Solution(object):
                     previousCity = self._route[i - 1]
                     self.quality += self.pctsp.cost[previousCity][city]
                 if i + 1 == self.size:
-                    self.quality += self.pctsp.cost[i][0]
+                    self.quality += self.pctsp.cost[city][0]
             else:
                 self.quality += self.pctsp.penal[city]
 
     def copy(self):
-        return copy.copy(self)
+        cp = copy.copy(self)
+        cp._route = list(self._route)
+
+        return cp
     
     def swap(self, i, j):
         city_i = self._route[i]
@@ -68,7 +89,8 @@ class Solution(object):
 
         self.quality = (self.quality
                 - self.pctsp.cost[city_i_prev][city_i] - self.pctsp.cost[city_i][city_i_next]
-                + self.pctsp.cost[city_i_prev][city_j] + self.pctsp.cost[city_j][city_i_next])
+                + self.pctsp.cost[city_i_prev][city_j] + self.pctsp.cost[city_j][city_i_next]
+                - self.pctsp.penal[city_j] + self.pctsp.penal[city_i])
         self.prize = self.prize - self.pctsp.prize[city_i] + self.pctsp.prize[city_j]
 
         self._route[j], self._route[i] = self._route[i], self._route[j]
@@ -78,10 +100,11 @@ class Solution(object):
 
     def add_city(self):
         city_l = self._route[self.size - 1]
-        city_add = self._route[self.size]        
-
+        city_add = self._route[self.size]
+        
         self.quality = (self.quality
             - self.pctsp.cost[city_l][0]
+            - self.pctsp.penal[city_add]
             + self.pctsp.cost[city_l][city_add]
             + self.pctsp.cost[city_add][0])
         
@@ -95,6 +118,7 @@ class Solution(object):
 
         self.quality = (self.quality
             - self.pctsp.cost[city_rem_prev][city_rem] - self.pctsp.cost[city_rem][city_rem_next]
+            + self.pctsp.penal[city_rem]
             + self.pctsp.cost[city_rem_prev][city_rem_next])
         self.prize -= self.pctsp.prize[city_rem]
 
@@ -108,7 +132,9 @@ class Solution(object):
             city_rem = self._route[i]
             city_rem_prev = self._route[i-1]
 
-            self.quality -= self.pctsp.cost[city_rem_prev][city_rem]
+            self.quality = (self.quality 
+                - self.pctsp.cost[city_rem_prev][city_rem]
+                + self.pctsp.penal[city_rem])
             self.prize -= self.pctsp.prize[city_rem]
 
         city_rem = self._route[self.size-1]
@@ -117,6 +143,9 @@ class Solution(object):
             + self.pctsp.cost[city_l][0])
 
         self.size -= quant
+
+    def print_route(self):
+        print(self._route)
 
     @property
     def route(self):
