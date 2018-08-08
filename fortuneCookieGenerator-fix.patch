@@ -1,0 +1,94 @@
+From 3b0418865a3970131bf9f450262d1595d6b114ed Mon Sep 17 00:00:00 2001
+From: Rafael Reis <rafael2reis@gmail.com>
+Date: Tue, 7 Aug 2018 22:52:20 -0300
+Subject: [PATCH] fixed controller scope and test
+
+---
+ .../FortuneCookieController.java                   | 15 +++++++
+ .../FortuneCookieControllerTest.java               | 46 ++++++++++++++++++++++
+ 2 files changed, 61 insertions(+)
+ create mode 100644 src/test/java/com/monsanto/interview/FortuneCookieGenerator/FortuneCookieControllerTest.java
+
+diff --git a/src/main/java/com/monsanto/interview/FortuneCookieGenerator/FortuneCookieController.java b/src/main/java/com/monsanto/interview/FortuneCookieGenerator/FortuneCookieController.java
+index 77997ab..ce0c9fe 100644
+--- a/src/main/java/com/monsanto/interview/FortuneCookieGenerator/FortuneCookieController.java
++++ b/src/main/java/com/monsanto/interview/FortuneCookieGenerator/FortuneCookieController.java
+@@ -5,7 +5,22 @@ import org.springframework.stereotype.Controller;
+ import org.springframework.web.bind.annotation.GetMapping;
+ import org.springframework.web.bind.annotation.RequestParam;
+ import org.springframework.web.bind.annotation.ResponseBody;
++import org.springframework.web.context.annotation.RequestScope;
+ 
++/*
++ * Added RequestScope to this controller:
++ * FortuneCookieBuilder is configured to use SCOPE_PROTOTYPE.
++ * It means that a new instace is being injected at the 
++ * creation of the controller.
++ * 
++ * Since the default scope for Spring beans is singleton, we
++ * only had a single instace of FortuneCookieBuilder in the app.
++ * 
++ * So we configured the app to create the controller for each 
++ * new request.
++ * 
++ */
++@RequestScope
+ @Controller
+ public class FortuneCookieController {
+ 
+diff --git a/src/test/java/com/monsanto/interview/FortuneCookieGenerator/FortuneCookieControllerTest.java b/src/test/java/com/monsanto/interview/FortuneCookieGenerator/FortuneCookieControllerTest.java
+new file mode 100644
+index 0000000..2e1e542
+--- /dev/null
++++ b/src/test/java/com/monsanto/interview/FortuneCookieGenerator/FortuneCookieControllerTest.java
+@@ -0,0 +1,46 @@
++package com.monsanto.interview.FortuneCookieGenerator;
++
++import static org.hamcrest.Matchers.containsString;
++
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.http.MediaType;
++import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
++import org.springframework.test.web.servlet.MockMvc;
++
++@RunWith(SpringJUnit4ClassRunner.class)
++@SpringBootTest
++@AutoConfigureMockMvc
++public class FortuneCookieControllerTest {
++	@Autowired
++	private MockMvc mockMvc;
++	
++	@Test
++	public void testGenerateFortuneCookie() throws Exception {
++		
++		this.mockMvc.perform(get("/generateFortuneCookie")
++				.param("client", "Barney")
++				.param("company", "SuperStore")
++				.accept(MediaType.APPLICATION_JSON))
++		.andDo(print())
++		.andExpect(status().isOk())
++		.andExpect(content().string(containsString("Barney")));
++		
++		this.mockMvc.perform(get("/generateFortuneCookie")
++				.param("client", "Sarah")
++				.param("company", "MegaMarket")
++				.accept(MediaType.APPLICATION_JSON))
++		.andDo(print())
++		.andExpect(status().isOk())
++		.andExpect(content().string(containsString("Sarah")));
++	}
++
++}
+\ No newline at end of file
+-- 
+2.14.3 (Apple Git-98)
+
